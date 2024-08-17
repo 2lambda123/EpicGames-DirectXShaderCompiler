@@ -8,12 +8,7 @@
 #include "llvm/ADT/StringRef.h"
 
 namespace dxdia {
-void WritePDBToTmpFile(
-    IDxcBlob *pdb,
-    std::string *pdb_filename);
+void WritePDBToTmpFile(IDxcBlob *pdb, std::string *pdb_filename);
 
-void WriteToFile(
-    IDxcBlob *Blob,
-    llvm::StringRef filename);
-}  // namespace dxdia
-
+void WriteToFile(IDxcBlob *Blob, llvm::StringRef filename);
+} // namespace dxdia
