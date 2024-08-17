@@ -53,15 +53,15 @@ namespace dxdia {
   X(Max)
 
 static std::wstring SymTagToStr(decltype(SymTagNull) ST) {
-  switch (ST)
-  {
-  default:
-    return L"<unknown " + std::to_wstring(ST) + L">";
+    switch (ST)
+    {
+    default:
+        return L"<unknown " + std::to_wstring(ST) + L">";
 #define CASE(EnumName) case SymTag ## EnumName: return L#EnumName;
-    ST_ENUM(CASE)
+        ST_ENUM(CASE)
 #undef CASE
-    break;
-  }
+        break;
+    }
 }
 
 #undef ST_ENUM
