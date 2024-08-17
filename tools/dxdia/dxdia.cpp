@@ -10,101 +10,99 @@
 
 #include <comdef.h>
 
-#include "dia2.h"
 #include "d3dcompiler.h"
+#include "dia2.h"
 
-#include "dxc/dxcapi.h"
-#include "dxc/Support/dxcapi.use.h"
 #include "dxc/Support/Global.h"
-#include "dxc/Support/microcom.h"
 #include "dxc/Support/Unicode.h"
+#include "dxc/Support/dxcapi.use.h"
+#include "dxc/Support/microcom.h"
+#include "dxc/dxcapi.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/IRReader/IRReader.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MSFileSystem.h"
-#include "llvm/Support/raw_os_ostream.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/raw_os_ostream.h"
 
 #include "DxDiaInput.h"
 #include "DxDiaOutput.h"
 #include "DxDiaResult.h"
 #include "DxDiaSymTag.h"
 
-HRESULT CreateDxcDiaDataSource(_In_ REFIID riid, _Out_ LPVOID* ppv);
+HRESULT CreateDxcDiaDataSource(_In_ REFIID riid, _Out_ LPVOID *ppv);
 
 namespace cl = llvm::cl;
 
-static cl::opt<std::string> DiaQuery(
-  cl::Positional,
-  cl::desc("<dia query>"),
-  cl::init(""),
-  cl::Required);
+static cl::opt<std::string> DiaQuery(cl::Positional, cl::desc("<dia query>"),
+                                     cl::init(""), cl::Required);
 
-static cl::opt<std::string> InputFilename(
-  cl::Positional,
-  cl::desc("<input bitcode>"),
-  cl::init("-"));
+static cl::opt<std::string>
+    InputFilename(cl::Positional, cl::desc("<input bitcode>"), cl::init("-"));
 
-static cl::opt<std::string> D3DCompiler(
-  "with-d3dcompiler",
-  cl::desc("Specifies the path to the d3dcompiler dll to be used if --use-d3dcompiler"),
-  cl::init("d3dcompiler_47.dll"));
+static cl::opt<std::string>
+    D3DCompiler("with-d3dcompiler",
+                cl::desc("Specifies the path to the d3dcompiler dll to be used "
+                         "if --use-d3dcompiler"),
+                cl::init("d3dcompiler_47.dll"));
 
-static cl::opt<std::string> DXCompiler(
-  "with-dxcompiler",
-  cl::desc("Specifies the path to the dxcompiler dll to be used if the input is not bitcode"),
-  cl::init("dxcompiler.dll"));
+static cl::opt<std::string>
+    DXCompiler("with-dxcompiler",
+               cl::desc("Specifies the path to the dxcompiler dll to be used "
+                        "if the input is not bitcode"),
+               cl::init("dxcompiler.dll"));
 
 static cl::opt<bool> UseD3DCompiler(
-  "use-d3dcompiler",
-  cl::desc("Use d3dcompiler (the one specified with --with-d3dcompiler) for creating the Dia data source"),
-  cl::init(false));
+    "use-d3dcompiler",
+    cl::desc("Use d3dcompiler (the one specified with --with-d3dcompiler) for "
+             "creating the Dia data source"),
+    cl::init(false));
 
-static cl::opt<std::string> Entrypoint(
-  "E",
-  cl::desc("Specifies the entry point (when compiling HLSL)"),
-  cl::init("main"));
+static cl::opt<std::string>
+    Entrypoint("E", cl::desc("Specifies the entry point (when compiling HLSL)"),
+               cl::init("main"));
 
 static cl::opt<std::string> TargetProfile(
-  "T",
-  cl::desc("Specifies the target profile (when compiling HLSL)"),
-  cl::init("cs_5_0"));
+    "T", cl::desc("Specifies the target profile (when compiling HLSL)"),
+    cl::init("cs_5_0"));
 
 static cl::opt<dxdia::InputKind> InputFormat(
     cl::desc("Input format"),
     cl::values(
-      clEnumValN(dxdia::InputKind::LLVM, "llvm", "Input is an LLVM module - binary or ll"),
-      clEnumValN(dxdia::InputKind::Blob, "blob", "Input is a DXBC/DXIL Blob"),
-      clEnumValN(dxdia::InputKind::HLSL, "hlsl", "Input is an HLSL source"),
-      clEnumValN(dxdia::InputKind::PDB, "pdb", "Input is a PDB"),
-      clEnumValEnd));
+        clEnumValN(dxdia::InputKind::LLVM, "llvm",
+                   "Input is an LLVM module - binary or ll"),
+        clEnumValN(dxdia::InputKind::Blob, "blob", "Input is a DXBC/DXIL Blob"),
+        clEnumValN(dxdia::InputKind::HLSL, "hlsl", "Input is an HLSL source"),
+        clEnumValN(dxdia::InputKind::PDB, "pdb", "Input is a PDB"),
+        clEnumValEnd));
 
-static void PrintSymbol(IDiaSymbol *P, IDiaSymbol *S, std::wstring ident, std::wstring prefix);
+static void PrintSymbol(IDiaSymbol *P, IDiaSymbol *S, std::wstring ident,
+                        std::wstring prefix);
 
 std::vector<CComPtr<IDiaSymbol>> knownSyms;
-static void FindChildrenAndPrint(IDiaSymbol *P, IDiaEnumSymbols *Syms, std::wstring ident, std::wstring prefix) {
-  //if (Syms->Reset() != S_OK) {
-  //  FATAL_ERROR(ChildrenEnumErr);
-  //}
+static void FindChildrenAndPrint(IDiaSymbol *P, IDiaEnumSymbols *Syms,
+                                 std::wstring ident, std::wstring prefix) {
+  // if (Syms->Reset() != S_OK) {
+  //   FATAL_ERROR(ChildrenEnumErr);
+  // }
 
   static constexpr ULONG kNumElts = 1;
   ULONG Count;
   bool done = false;
   uint32_t sCount = 1;
   for (CComPtr<IDiaSymbol> S; !done; S.Release(), ++sCount) {
-    switch (Syms->Next(kNumElts, &S, &Count))
-    {
+    switch (Syms->Next(kNumElts, &S, &Count)) {
     case S_FALSE:
       done = true;
-      // fallthrough
+    // fallthrough
     case S_OK:
       break;
     default:
@@ -112,14 +110,15 @@ static void FindChildrenAndPrint(IDiaSymbol *P, IDiaEnumSymbols *Syms, std::wstr
     }
 
     if (Count == kNumElts) {
-      //knownSyms.emplace_back(S);
+      // knownSyms.emplace_back(S);
       PrintSymbol(P, S, ident + L"  ", prefix + L"." + std::to_wstring(sCount));
       std::wcout << "\n" << std::flush;
     }
   }
 }
 
-static void PrintSymbol(IDiaSymbol *P, IDiaSymbol *S, std::wstring ident, std::wstring prefix) {
+static void PrintSymbol(IDiaSymbol *P, IDiaSymbol *S, std::wstring ident,
+                        std::wstring prefix) {
   CComPtr<IDiaSymbol> actualP;
   switch (S->get_lexicalParent(&actualP)) {
   default:
@@ -128,9 +127,9 @@ static void PrintSymbol(IDiaSymbol *P, IDiaSymbol *S, std::wstring ident, std::w
   case S_FALSE:
     break;
   }
-  //if (actualP != P) {
-  //  return;
-  //}
+  // if (actualP != P) {
+  //   return;
+  // }
 
   BSTR str = {};
   switch (S->get_name(&str)) {
@@ -155,7 +154,8 @@ static void PrintSymbol(IDiaSymbol *P, IDiaSymbol *S, std::wstring ident, std::w
   case S_FALSE:
     break;
   }
-  std::wcout << ident << prefix << ": " << (void*) S << " " << (void*) actualP.p << " " << str << " " << sST;
+  std::wcout << ident << prefix << ": " << (void *)S << " " << (void *)actualP.p
+             << " " << str << " " << sST;
 
   VARIANT v = {};
   bool hasValue = false;
@@ -247,7 +247,7 @@ static void ProcessDiaDataSource(CComPtr<IDiaDataSource> DDS) {
       switch (Tables->Next(kReadCnt, &Table, &Count)) {
       case S_FALSE:
         done = true;
-        // fallthrough intended.
+      // fallthrough intended.
       case S_OK:
         break;
       default:
@@ -275,24 +275,31 @@ static void ProcessDiaDataSource(CComPtr<IDiaDataSource> DDS) {
 namespace {
 struct FreeModuleRAII {
   FreeModuleRAII() {}
-  ~FreeModuleRAII() { if (handle) { FreeModule(handle); } }
+  ~FreeModuleRAII() {
+    if (handle) {
+      FreeModule(handle);
+    }
+  }
   HMODULE handle = nullptr;
 };
-}  // namespace
+} // namespace
 
 static void DxDia(int argc, const char *argv[]) {
   if (llvm::sys::fs::SetupPerThreadFileSystem())
     FATAL_ERROR(ThreadFSCreationErr);
   llvm::sys::fs::AutoCleanupPerThreadFileSystem auto_cleanup_fs;
-  if (FAILED(DxcInitThreadMalloc())) FATAL_ERROR(ThreadFSCreationErr);
+  if (FAILED(DxcInitThreadMalloc()))
+    FATAL_ERROR(ThreadFSCreationErr);
   DxcSetThreadMallocOrDefault(nullptr);
-  llvm::sys::fs::MSFileSystem* msfPtr;
-  if (FAILED(CreateMSFileSystemForDisk(&msfPtr))) FATAL_ERROR(ThreadFSCreationErr);
+  llvm::sys::fs::MSFileSystem *msfPtr;
+  if (FAILED(CreateMSFileSystemForDisk(&msfPtr)))
+    FATAL_ERROR(ThreadFSCreationErr);
   std::unique_ptr<llvm::sys::fs::MSFileSystem> msf(msfPtr);
   llvm::sys::fs::AutoPerThreadSystem pts(msf.get());
   CoInitialize(nullptr);
 
-  cl::ParseCommandLineOptions(argc, argv, "dxdia - a (standalone) tool for inspecting DXIL debug info");
+  cl::ParseCommandLineOptions(
+      argc, argv, "dxdia - a (standalone) tool for inspecting DXIL debug info");
 
   FreeModuleRAII hD3DCompilerRAII;
   auto d3dcompiler = [&hD3DCompilerRAII]() -> HMODULE {
@@ -309,7 +316,8 @@ static void DxDia(int argc, const char *argv[]) {
   auto dxcompiler = [&dxcompilerRAII]() -> dxc::DxcDllSupport & {
     if (!dxcompilerRAII) {
       dxcompilerRAII.reset(new dxc::DxcDllSupport());
-      if (dxcompilerRAII->InitializeForDll(_bstr_t(DXCompiler.c_str()), "DxcCreateInstance") != S_OK) {
+      if (dxcompilerRAII->InitializeForDll(_bstr_t(DXCompiler.c_str()),
+                                           "DxcCreateInstance") != S_OK) {
         FATAL_ERROR(CompilerLoadErr);
       }
     }
@@ -319,8 +327,7 @@ static void DxDia(int argc, const char *argv[]) {
   // Buffer with the input data.
   CComPtr<dxdia::DxDiaBuffer> InputBuffer;
   std::string pdb_filename;
-  switch (InputFormat)
-  {
+  switch (InputFormat) {
   default:
     FATAL_ERROR(FailedToLoadInput);
   case dxdia::InputKind::PDB:
@@ -342,8 +349,7 @@ static void DxDia(int argc, const char *argv[]) {
 
   // Buffer with a DXBC/DXIL blob.
   CComPtr<dxdia::DxDiaBuffer> BlobBuffer;
-  switch (InputFormat)
-  {
+  switch (InputFormat) {
   default:
     FATAL_ERROR(FailedToLoadInput);
   case dxdia::InputKind::PDB:
@@ -359,9 +365,11 @@ static void DxDia(int argc, const char *argv[]) {
     CComPtr<IDxcBlob> COB;
 
     if (UseD3DCompiler) {
-      dxdia::ParseHLSLWithD3DCompiler(d3dcompiler(), InputBuffer, InputFilename, Entrypoint, TargetProfile, &COB);
+      dxdia::ParseHLSLWithD3DCompiler(d3dcompiler(), InputBuffer, InputFilename,
+                                      Entrypoint, TargetProfile, &COB);
     } else {
-      dxdia::ParseHLSLWithDXCompiler(dxcompiler(), InputBuffer, InputFilename, Entrypoint, TargetProfile, &COB);
+      dxdia::ParseHLSLWithDXCompiler(dxcompiler(), InputBuffer, InputFilename,
+                                     Entrypoint, TargetProfile, &COB);
     }
 
     BlobBuffer = dxdia::DxDiaBuffer::Create(COB);
@@ -371,8 +379,7 @@ static void DxDia(int argc, const char *argv[]) {
 
   // The Dxil buffer, if BlobBuffer is a DXIL blob.
   CComPtr<IDxcBlob> DxilBuffer;
-  switch (InputFormat)
-  {
+  switch (InputFormat) {
   default:
     FATAL_ERROR(FailedToLoadInput);
   case dxdia::InputKind::PDB:
@@ -387,14 +394,16 @@ static void DxDia(int argc, const char *argv[]) {
   case dxdia::InputKind::HLSL: {
     // The PDB buffer, if BlobBuffer is a DXBC blob.
     CComPtr<IDxcBlob> PdbBuffer;
-    dxdia::ExtractDxilAndPDBBlobParts(dxcompiler(), BlobBuffer, &DxilBuffer, &PdbBuffer);
+    dxdia::ExtractDxilAndPDBBlobParts(dxcompiler(), BlobBuffer, &DxilBuffer,
+                                      &PdbBuffer);
     if (DxilBuffer) {
       assert(!PdbBuffer && "DXIL blob should not have a PDB part.");
       // If the blob has a Dxil part, ignore any PDBs it may have.
       PdbBuffer.Release();
     }
     if (PdbBuffer) {
-      // Create a temporary file housing the PDB so we can loadFromPDB in dxdia::LoadPDB.
+      // Create a temporary file housing the PDB so we can loadFromPDB in
+      // dxdia::LoadPDB.
       dxdia::WritePDBToTmpFile(PdbBuffer, &pdb_filename);
     }
     break;
@@ -423,8 +432,8 @@ int main(int argc, const char *argv[]) {
   try {
     DxDia(argc, argv);
   } catch (const dxdia::FatalError &err) {
-    std::cerr
-      << "Fatal dxdia error reported on " << err.filename << ':' << err.lineno << ": " << err.kind_str() << "\n";
+    std::cerr << "Fatal dxdia error reported on " << err.filename << ':'
+              << err.lineno << ": " << err.kind_str() << "\n";
     status = static_cast<std::uint32_t>(err.kind);
   }
 

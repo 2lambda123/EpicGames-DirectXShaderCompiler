@@ -6,9 +6,9 @@
 
 #include <d3dcompiler.h>
 
-#include "dxc/dxcapi.h"
 #include "dxc/Support/Global.h"
 #include "dxc/Support/microcom.h"
+#include "dxc/dxcapi.h"
 #include "llvm/ADT/StringRef.h"
 
 #include "DxDiaResult.h"
@@ -16,7 +16,7 @@
 namespace dxdia {
 struct DxDiaBuffer : public IDxcBlob, public IStream {
   DxDiaBuffer(const DxDiaBuffer &) = delete;
-  DxDiaBuffer &operator =(const DxDiaBuffer &) = delete;
+  DxDiaBuffer &operator=(const DxDiaBuffer &) = delete;
   DXC_MICROCOM_TM_REF_FIELDS()
   CComPtr<ID3DBlob> D3DBlob;
   CComPtr<IDxcBlob> DxcBlob;
@@ -30,16 +30,18 @@ struct DxDiaBuffer : public IDxcBlob, public IStream {
     D3DBlob = B;
     DxcBlob.Release();
     Contents.clear();
-    Value = llvm::StringRef(reinterpret_cast<const char *>(B->GetBufferPointer()),
-                                                           B->GetBufferSize());
+    Value =
+        llvm::StringRef(reinterpret_cast<const char *>(B->GetBufferPointer()),
+                        B->GetBufferSize());
   }
 
   void assign(CComPtr<IDxcBlob> B) {
     D3DBlob.Release();
     DxcBlob = B;
     Contents.clear();
-    Value = llvm::StringRef(reinterpret_cast<const char *>(B->GetBufferPointer()),
-                            B->GetBufferSize());
+    Value =
+        llvm::StringRef(reinterpret_cast<const char *>(B->GetBufferPointer()),
+                        B->GetBufferSize());
   }
 
   void assign(llvm::StringRef str) {
@@ -59,8 +61,7 @@ struct DxDiaBuffer : public IDxcBlob, public IStream {
     return ppv;
   }
 
-  template <typename VT>
-  static CComPtr<DxDiaBuffer> Create(VT value) {
+  template <typename VT> static CComPtr<DxDiaBuffer> Create(VT value) {
     return CreateWithMalloc(DxcGetThreadMallocNoRef(), value);
   }
 
@@ -70,72 +71,90 @@ struct DxDiaBuffer : public IDxcBlob, public IStream {
 
 #pragma region IDxcBlob implementation
   LPVOID STDMETHODCALLTYPE GetBufferPointer(void) override {
-    return (LPVOID) Value.data();
+    return (LPVOID)Value.data();
   }
 
-  SIZE_T STDMETHODCALLTYPE GetBufferSize(void) override {
-    return Value.size();
-  }
+  SIZE_T STDMETHODCALLTYPE GetBufferSize(void) override { return Value.size(); }
 #pragma endregion
 
   static HRESULT ENotImpl() { return E_NOTIMPL; }
 
 #pragma region IStream implementation.
   STDMETHODIMP Read(
-    /* [annotation] */
-    _Out_writes_bytes_to_(cb, *pcbRead)  void *pv,
-    /* [annotation][in] */
-    _In_  ULONG cb,
-    /* [annotation] */
-    _Out_opt_  ULONG *pcbRead) override { return ENotImpl(); }
+      /* [annotation] */
+      _Out_writes_bytes_to_(cb, *pcbRead) void *pv,
+      /* [annotation][in] */
+      _In_ ULONG cb,
+      /* [annotation] */
+      _Out_opt_ ULONG *pcbRead) override {
+    return ENotImpl();
+  }
 
   STDMETHODIMP Write(
-    /* [annotation] */
-    _In_reads_bytes_(cb)  const void *pv,
-    /* [annotation][in] */
-    _In_  ULONG cb,
-    /* [annotation] */
-    _Out_opt_  ULONG *pcbWritten) override { return ENotImpl(); }
+      /* [annotation] */
+      _In_reads_bytes_(cb) const void *pv,
+      /* [annotation][in] */
+      _In_ ULONG cb,
+      /* [annotation] */
+      _Out_opt_ ULONG *pcbWritten) override {
+    return ENotImpl();
+  }
 
   STDMETHODIMP Seek(
-    /* [in] */ LARGE_INTEGER dlibMove,
-    /* [in] */ DWORD dwOrigin,
-    /* [annotation] */
-    _Out_opt_  ULARGE_INTEGER *plibNewPosition) override { return ENotImpl(); }
+      /* [in] */ LARGE_INTEGER dlibMove,
+      /* [in] */ DWORD dwOrigin,
+      /* [annotation] */
+      _Out_opt_ ULARGE_INTEGER *plibNewPosition) override {
+    return ENotImpl();
+  }
 
   STDMETHODIMP SetSize(
-    /* [in] */ ULARGE_INTEGER libNewSize) override { return ENotImpl(); }
+      /* [in] */ ULARGE_INTEGER libNewSize) override {
+    return ENotImpl();
+  }
 
   STDMETHODIMP CopyTo(
-    /* [annotation][unique][in] */
-    _In_  IStream *pstm,
-    /* [in] */ ULARGE_INTEGER cb,
-    /* [annotation] */
-    _Out_opt_  ULARGE_INTEGER *pcbRead,
-    /* [annotation] */
-    _Out_opt_  ULARGE_INTEGER *pcbWritten) override { return ENotImpl(); }
+      /* [annotation][unique][in] */
+      _In_ IStream *pstm,
+      /* [in] */ ULARGE_INTEGER cb,
+      /* [annotation] */
+      _Out_opt_ ULARGE_INTEGER *pcbRead,
+      /* [annotation] */
+      _Out_opt_ ULARGE_INTEGER *pcbWritten) override {
+    return ENotImpl();
+  }
 
   STDMETHODIMP Commit(
-    /* [in] */ DWORD grfCommitFlags) override { return ENotImpl(); }
+      /* [in] */ DWORD grfCommitFlags) override {
+    return ENotImpl();
+  }
 
   STDMETHODIMP Revert(void) override { return ENotImpl(); }
 
   STDMETHODIMP LockRegion(
-    /* [in] */ ULARGE_INTEGER libOffset,
-    /* [in] */ ULARGE_INTEGER cb,
-    /* [in] */ DWORD dwLockType) override { return ENotImpl(); }
+      /* [in] */ ULARGE_INTEGER libOffset,
+      /* [in] */ ULARGE_INTEGER cb,
+      /* [in] */ DWORD dwLockType) override {
+    return ENotImpl();
+  }
 
   STDMETHODIMP UnlockRegion(
-    /* [in] */ ULARGE_INTEGER libOffset,
-    /* [in] */ ULARGE_INTEGER cb,
-    /* [in] */ DWORD dwLockType)  override { return ENotImpl(); }
+      /* [in] */ ULARGE_INTEGER libOffset,
+      /* [in] */ ULARGE_INTEGER cb,
+      /* [in] */ DWORD dwLockType) override {
+    return ENotImpl();
+  }
 
   STDMETHODIMP Stat(
-    /* [out] */ __RPC__out STATSTG *pstatstg,
-    /* [in] */ DWORD grfStatFlag) override { return ENotImpl(); }
+      /* [out] */ __RPC__out STATSTG *pstatstg,
+      /* [in] */ DWORD grfStatFlag) override {
+    return ENotImpl();
+  }
 
   STDMETHODIMP Clone(
-    /* [out] */ __RPC__deref_out_opt IStream **ppstm) override { return ENotImpl(); }
+      /* [out] */ __RPC__deref_out_opt IStream **ppstm) override {
+    return ENotImpl();
+  }
 #pragma endregion
 };
-}  // namespace dxdia
+} // namespace dxdia

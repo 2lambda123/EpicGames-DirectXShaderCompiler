@@ -1,4 +1,3 @@
-
 # Build polly before the tools: the tools link against polly when
 # LINK_POLLY_INTO_TOOLS is set.
 if(WITH_POLLY)
@@ -7,7 +6,7 @@ else(WITH_POLLY)
   list(APPEND LLVM_IMPLICIT_PROJECT_IGNORE "${LLVM_MAIN_SRC_DIR}/tools/polly")
 endif(WITH_POLLY)
 
-if( LLVM_BUILD_LLVM_DYLIB )
+if(LLVM_BUILD_LLVM_DYLIB)
   add_llvm_tool_subdirectory(llvm-shlib)
 else()
   ignore_llvm_tool_subdirectory(llvm-shlib)
@@ -19,11 +18,11 @@ endif()
 # add_llvm_tool_subdirectory(llvm-mc) # HLSL Change
 
 # HLSL Change Begins
-if (WIN32)
-# These target can currently only be built on Windows.
-add_llvm_tool_subdirectory(dxdia)
-add_llvm_tool_subdirectory(dxexp)
-endif (WIN32)
+if(WIN32)
+  # These target can currently only be built on Windows.
+  add_llvm_tool_subdirectory(dxdia)
+  add_llvm_tool_subdirectory(dxexp)
+endif(WIN32)
 # HLSL Change ends
 
 # add_llvm_tool_subdirectory(llc) # HLSL Change
@@ -44,8 +43,8 @@ endif (WIN32)
 # add_llvm_tool_subdirectory(llvm-rtdyld) # HLSL Change
 # add_llvm_tool_subdirectory(llvm-dwarfdump) # HLSL Change
 # add_llvm_tool_subdirectory(dsymutil) # HLSL Change
-# add_llvm_tool_subdirectory(llvm-cxxdump) # HLSL Change
-# HLSL Change - remove llvm-jitlistener conditional on LLVM_USE_INTEL_JITEVENTS
+# add_llvm_tool_subdirectory(llvm-cxxdump) # HLSL Change HLSL Change - remove
+# llvm-jitlistener conditional on LLVM_USE_INTEL_JITEVENTS
 
 # add_llvm_tool_subdirectory(bugpoint) # HLSL Change
 # add_llvm_tool_subdirectory(bugpoint-passes) # HLSL Change
@@ -67,8 +66,8 @@ endif (WIN32)
 # add_llvm_tool_subdirectory(llvm-pdbdump) # HLSL Change
 
 if(NOT CYGWIN AND LLVM_ENABLE_PIC)
-#   add_llvm_tool_subdirectory(lto) # HLSL Change
-#   add_llvm_tool_subdirectory(llvm-lto) # HLSL Change
+  # add_llvm_tool_subdirectory(lto) # HLSL Change
+  # add_llvm_tool_subdirectory(llvm-lto) # HLSL Change
 else()
   ignore_llvm_tool_subdirectory(lto)
   ignore_llvm_tool_subdirectory(llvm-lto)
@@ -77,12 +76,12 @@ endif()
 # add_llvm_tool_subdirectory(gold) # HLSL Change
 
 add_llvm_external_project(clang)
-# add_llvm_external_project(llgo) # HLSL Change
-# add_llvm_external_project(lld) # HLSL Change
-# add_llvm_external_project(lldb) # HLSL Change
+# add_llvm_external_project(llgo) # HLSL Change add_llvm_external_project(lld) #
+# HLSL Change add_llvm_external_project(lldb) # HLSL Change
 
-# Automatically add remaining sub-directories containing a 'CMakeLists.txt'
-# file as external projects.
-# add_llvm_implicit_external_projects() # HLSL Change
+# Automatically add remaining sub-directories containing a 'CMakeLists.txt' file
+# as external projects. add_llvm_implicit_external_projects() # HLSL Change
 
-set(LLVM_COMMON_DEPENDS ${LLVM_COMMON_DEPENDS} PARENT_SCOPE)
+set(LLVM_COMMON_DEPENDS
+    ${LLVM_COMMON_DEPENDS}
+    PARENT_SCOPE)
